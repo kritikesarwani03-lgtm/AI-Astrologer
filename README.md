@@ -89,12 +89,3 @@ ai-astrologer/
 - Chat history panel that restores earlier conversations.
 - Multi-language support.
 
-## Author
-
-**Pranjal Vishnoi**
-Roll No: 2500910100139 | Section: CSE-2
-Department of Computer Science and Engineering
-JSS Academy of Technical Education, Noida
-Faculty Mentor: Ms. Akanksha
-
-_Developed as a III Semester Internship / Mini Project._
