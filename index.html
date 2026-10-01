@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>AI Astrologer</title>
+<style>
+  /* Always-dark theme (no longer switches to light with the device setting) */
+  :root{
+    color-scheme:dark;
+    --bg:#0f1024; --bg2:#1a1b3a; --card:#1e1f45; --text:#eceaff;
+    --muted:#a9a7d6; --accent:#9b7bff; --accent2:#ffb86b; --border:#32335f;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  html{background:var(--bg);}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  .wrap{max-width:720px;margin:0 auto;padding:28px 18px 60px;}
+  h1{font-size:1.5rem;margin:0 0 4px;background:linear-gradient(90deg,var(--accent),var(--accent2));
+     -webkit-background-clip:text;background-clip:text;color:transparent;}
+  .sub{color:var(--muted);font-size:.9rem;margin:0 0 22px;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:16px;}
+  label{display:block;font-size:.8rem;color:var(--muted);margin:10px 0 4px;}
+  input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);
+        background:var(--bg2);color:var(--text);font-size:.95rem;}
+  input::placeholder{color:var(--muted);}
+  button{cursor:pointer;border:none;border-radius:8px;padding:11px 16px;font-weight:600;font-size:.9rem;}
+  .primary{background:linear-gradient(90deg,var(--accent),var(--accent2));color:#161329;width:100%;margin-top:14px;}
+  .primary:disabled{opacity:.6;cursor:default;}
+  .trait-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
+  .trait-grid>div{background:var(--bg2);border-radius:10px;padding:10px;}
+  .trait-grid h4{margin:0 0 6px;font-size:.75rem;color:var(--accent2);text-transform:uppercase;letter-spacing:.04em;}
+  .trait-grid p,.trait-grid ul{margin:0;font-size:.85rem;color:var(--text);}
+  .trait-grid ul{padding-left:16px;}
+  #chatBox{max-height:360px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;margin-bottom:10px;}
+  .msg{padding:10px 12px;border-radius:10px;font-size:.9rem;line-height:1.4;max-width:85%;}
+  .msg.user{align-self:flex-end;background:var(--accent);color:#161329;}
+  .msg.ai{align-self:flex-start;background:var(--bg2);border:1px solid var(--border);}
+  .chat-input-row{display:flex;gap:8px;}
+  .chat-input-row input{flex:1;}
+  .chat-input-row button{background:var(--accent);color:#161329;white-space:nowrap;}
+  .hint{font-size:.75rem;color:var(--muted);margin-top:8px;}
+  .hidden{display:none;}
+  .zodiac{font-size:2rem;text-align:center;margin:4px 0 2px;}
+  .zodiac-name{text-align:center;font-weight:700;color:var(--accent2);margin-bottom:10px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🔮 AI Astrologer</h1>
+  <p class="sub">Astrology-inspired personality analysis &amp; AI chat assistant — generated insights are for entertainment/reflection, not scientific psychological assessment.</p>
+
+  <div class="card" id="formCard">
+    <label for="name">Name</label>
+    <input id="name" placeholder="Your name">
+    <label for="dob">Date of birth</label>
+    <input id="dob" type="date">
+    <label for="tob">Birth time </label>
+    <input id="tob" type="time">
+    <label for="pob">Birth place </label>
+    <input id="pob" placeholder="City, Country">
+    <button class="primary" id="genBtn">Generate My Profile</button>
+  </div>
+
+  <div class="card hidden" id="profileCard">
+    <div class="zodiac" id="zodiacEmoji"></div>
+    <div class="zodiac-name" id="zodiacName"></div>
+    <div class="trait-grid">
+      <div><h4>Personality</h4><ul id="pPersonality"></ul></div>
+      <div><h4>Strengths</h4><ul id="pStrengths"></ul></div>
+      <div><h4>Areas to improve</h4><ul id="pImprove"></ul></div>
+      <div><h4>Career tendencies</h4><p id="pCareer"></p></div>
+    </div>
+    <button class="primary" id="editBtn" style="background:var(--bg2);color:var(--text);border:1px solid var(--border);">Edit Details</button>
+  </div>
+
+  <div class="card hidden" id="chatCard">
+    <h4 style="margin:0 0 10px;color:var(--accent2);">💬 Ask AI about yourself</h4>
+    <div id="chatBox"></div>
+    <div class="chat-input-row">
+      <input id="chatInput" placeholder="e.g. What career might suit me?">
+      <button id="sendBtn">Send</button>
+    </div>
+    <p class="hint" id="chatHint"></p>
+    <p class="hint">Responses are generated using your profile data combined with rule-based logic — not live internet lookup.</p>
+  </div>
+</div>
+
+<script>
+const ZODIAC = [
+  {name:"Capricorn",emoji:"♑",end:[1,19],personality:["Disciplined","Ambitious","Practical"],strengths:["Patience","Responsibility","Self-control"],improve:["Can be too rigid","Overworking"],career:"Thrives in structured, leadership, or management-oriented roles."},
+  {name:"Aquarius",emoji:"♒",end:[2,18],personality:["Independent","Original","Humanitarian"],strengths:["Innovative thinking","Open-mindedness"],improve:["Can seem detached","Overly unconventional"],career:"Suited for research, technology, and roles needing fresh ideas."},
+  {name:"Pisces",emoji:"♓",end:[3,20],personality:["Compassionate","Imaginative","Intuitive"],strengths:["Empathy","Creativity"],improve:["Can avoid confrontation","Overly idealistic"],career:"Fits creative, counseling, or design-oriented careers."},
+  {name:"Aries",emoji:"♈",end:[4,19],personality:["Bold","Energetic","Confident"],strengths:["Leadership","Initiative"],improve:["Impatience","Impulsiveness"],career:"Does well in entrepreneurship, sales, and fast-paced roles."},
+  {name:"Taurus",emoji:"♉",end:[5,20],personality:["Reliable","Patient","Grounded"],strengths:["Consistency","Determination"],improve:["Stubbornness","Resistance to change"],career:"Strong fit for finance, operations, and steady long-term projects."},
+  {name:"Gemini",emoji:"♊",end:[6,20],personality:["Curious","Adaptable","Communicative"],strengths:["Versatility","Quick learning"],improve:["Can lack follow-through","Restlessness"],career:"Suited to communication, journalism, and multi-skill roles."},
+  {name:"Cancer",emoji:"♋",end:[7,22],personality:["Caring","Intuitive","Loyal"],strengths:["Empathy","Strong memory"],improve:["Overly sensitive","Moodiness"],career:"Fits roles in HR, healthcare, and team-oriented work."},
+  {name:"Leo",emoji:"♌",end:[8,22],personality:["Confident","Generous","Expressive"],strengths:["Charisma","Motivation"],improve:["Can be prideful","Needs validation"],career:"Thrives in leadership, performance, and public-facing roles."},
+  {name:"Virgo",emoji:"♍",end:[9,22],personality:["Analytical","Organized","Detail-oriented"],strengths:["Precision","Reliability"],improve:["Overcritical","Perfectionism"],career:"Suited for analysis, QA, research, and process-driven roles."},
+  {name:"Libra",emoji:"♎",end:[10,22],personality:["Diplomatic","Fair-minded","Social"],strengths:["Collaboration","Balance"],improve:["Indecisiveness","Avoids conflict"],career:"Fits design, law, HR, and partnership-driven roles."},
+  {name:"Scorpio",emoji:"♏",end:[11,21],personality:["Passionate","Strategic","Resilient"],strengths:["Focus","Determination"],improve:["Can be secretive","Intense"],career:"Suited for research, strategy, and investigative roles."},
+  {name:"Sagittarius",emoji:"♐",end:[12,21],personality:["Optimistic","Adventurous","Honest"],strengths:["Big-picture thinking","Enthusiasm"],improve:["Can overpromise","Restlessness"],career:"Does well in travel, education, and idea-driven roles."},
+  {name:"Capricorn",emoji:"♑",end:[12,31],personality:["Disciplined","Ambitious","Practical"],strengths:["Patience","Responsibility"],improve:["Can be too rigid","Overworking"],career:"Thrives in structured, leadership-oriented roles."}
+];
+function getZodiac(dateStr){
+  const d=new Date(dateStr), m=d.getMonth()+1, day=d.getDate();
+  for(const z of ZODIAC){ if(m<z.end[0] || (m===z.end[0] && day<=z.end[1])) return z; }
+  return ZODIAC[0];
+}
+function li(arr){ return arr.map(t=>`<li>${t}</li>`).join(''); }
+
+let profile = null;
+try{ const saved = localStorage.getItem('astro_profile'); if(saved) profile = JSON.parse(saved); }catch(e){}
+
+const formCard=document.getElementById('formCard'), profileCard=document.getElementById('profileCard'), chatCard=document.getElementById('chatCard');
+
+function renderProfile(p){
+  document.getElementById('zodiacEmoji').textContent=p.zodiac.emoji;
+  document.getElementById('zodiacName').textContent=`${p.zodiac.name} — ${p.name}`;
+  document.getElementById('pPersonality').innerHTML=li(p.zodiac.personality);
+  document.getElementById('pStrengths').innerHTML=li(p.zodiac.strengths);
+  document.getElementById('pImprove').innerHTML=li(p.zodiac.improve);
+  document.getElementById('pCareer').textContent=p.zodiac.career;
+  formCard.classList.add('hidden'); profileCard.classList.remove('hidden'); chatCard.classList.remove('hidden');
+}
+
+if(profile){ renderProfile(profile); }
+
+document.getElementById('genBtn').onclick=()=>{
+  const name=document.getElementById('name').value.trim()||'Friend';
+  const dob=document.getElementById('dob').value;
+  if(!dob){ alert('Please enter your date of birth.'); return; }
+  const tob=document.getElementById('tob').value;
+  const pob=document.getElementById('pob').value.trim();
+  const zodiac=getZodiac(dob);
+  profile={name,dob,tob,pob,zodiac,chat:[]};
+  try{ localStorage.setItem('astro_profile', JSON.stringify(profile)); }catch(e){}
+  renderProfile(profile);
+};
+
+document.getElementById('editBtn').onclick=()=>{
+  profileCard.classList.add('hidden'); chatCard.classList.add('hidden'); formCard.classList.remove('hidden');
+};
+
+// ---- AI chat via sample capability ----
+const chatBox=document.getElementById('chatBox');
+const chatHint=document.getElementById('chatHint');
+let sampleFn=null;
+
+let useRealAI = false;
+if (typeof claude !== 'undefined' && claude.use) {
+  claude.use('sample').then(fn=>{
+    if(fn){ sampleFn=fn; useRealAI=true; chatHint.textContent='AI chat active (live).'; }
+    else { chatHint.textContent='AI chat '; }
+  }).catch(()=>{ chatHint.textContent='AI chat'; });
+} else {
+  chatHint.textContent='AI chat.';
+}
+
+function simulateAnswer(profile, q){
+  const z = profile.zodiac;
+  const ql = q.toLowerCase();
+  const pick = arr => arr[Math.floor(Math.random()*arr.length)];
+
+  if(/career|job|work|profession/.test(ql)){
+    return `Based on your ${z.name} profile, ${z.career} Your natural strengths in ${z.strengths.join(' and ')} would support you well in such paths.`;
+  }
+  if(/strength/.test(ql)){
+    return `Your profile highlights ${z.strengths.join(', ')} as your core strengths — these show up in how you approach challenges and relationships alike.`;
+  }
+  if(/weak|improve|improvement/.test(ql)){
+    return `A few areas your profile suggests reflecting on: ${z.improve.join(' and ')}. Being aware of these is already a strong first step.`;
+  }
+  if(/introvert|extrovert|social/.test(ql)){
+    return `As a ${z.name}, you likely lean toward being ${pick(z.personality)} and ${pick(z.personality)} in social settings — ${z.name}s often balance both solitude and connection depending on their mood.`;
+  }
+  if(/relationship|love|partner/.test(ql)){
+    return `In relationships, your ${z.name} traits of being ${pick(z.personality)} and ${pick(z.strengths)}-minded tend to shape how you connect with others.`;
+  }
+  if(/personality|who am i|about me/.test(ql)){
+    return `Your profile paints you as ${z.personality.join(', ')} — a combination that's quite characteristic of ${z.name}.`;
+  }
+  return `Reflecting on your ${z.name} profile — traits like ${pick(z.personality)} and ${pick(z.strengths)} — this could offer an interesting angle on your question. (This is astrology-inspired reflection, not a definitive answer!)`;
+}
+
+function addMsg(text, who){
+  const d=document.createElement('div'); d.className='msg '+who; d.textContent=text;
+  chatBox.appendChild(d); chatBox.scrollTop=chatBox.scrollHeight;
+  return d;
+}
+
+async function sendChat(){
+  if(!profile) return;
+  const input=document.getElementById('chatInput');
+  const q=input.value.trim();
+  if(!q) return;
+  input.value='';
+  addMsg(q,'user');
+  const thinking=addMsg('Thinking...','ai');
+
+  
+  if(useRealAI && sampleFn){
+    const profileText = `Name: ${profile.name}
+Date of Birth: ${profile.dob}
+Birth Time: ${profile.tob||'not provided'}
+Birth Place: ${profile.pob||'not provided'}
+Zodiac Sign: ${profile.zodiac.name}
+Personality traits: ${profile.zodiac.personality.join(', ')}
+Strengths: ${profile.zodiac.strengths.join(', ')}
+Areas to improve: ${profile.zodiac.improve.join(', ')}
+Career tendencies: ${profile.zodiac.career}`;
+
+    const history = (profile.chat||[]).slice(-6);
+    const messages = [
+      {role:'user', content:`You are a friendly astrology-inspired personality assistant. Use ONLY the profile below as context. Keep answers warm, concise (3-5 sentences), and clearly framed as astrology-inspired reflection, not scientific fact.
+
+USER PROFILE:
+${profileText}
+
+${history.map(h=>`${h.role==='user'?'User':'Assistant'}: ${h.content}`).join('\n')}
+User: ${q}`}
+    ];
+
+    try{
+      const res = await sampleFn(messages, { modelTier:'quick' });
+      thinking.textContent = res.text;
+      profile.chat = [...(profile.chat||[]), {role:'user',content:q}, {role:'assistant',content:res.text}];
+      try{ localStorage.setItem('astro_profile', JSON.stringify(profile)); }catch(e){}
+      return;
+    }catch(err){ /* fall through to simulated */ }
+  }
+
+  // Simulated fallback — works with no API, instantly
+  setTimeout(()=>{
+    const answer = simulateAnswer(profile, q);
+    thinking.textContent = answer;
+    profile.chat = [...(profile.chat||[]), {role:'user',content:q}, {role:'assistant',content:answer}];
+    try{ localStorage.setItem('astro_profile', JSON.stringify(profile)); }catch(e){}
+  }, 500); // small delay to feel like "thinking"
+}
+
+document.getElementById('sendBtn').onclick=sendChat;
+document.getElementById('chatInput').addEventListener('keydown', e=>{ if(e.key==='Enter') sendChat(); });
+</script>
+</body>
+</html>
